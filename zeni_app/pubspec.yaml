@@ -1,0 +1,37 @@
+name: zeni_app
+description: "ZENI Personal AI Assistant"
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.2.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  http: ^1.2.0
+  shared_preferences: ^2.2.2
+  speech_to_text: ^6.6.0
+  flutter_tts: ^3.8.5
+  record: ^5.0.0
+
+  flutter_background_service: ^5.0.5
+  flutter_background_service_android: ^6.2.5   # ✅ FIXED
+
+  
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/hey_zeni.ppn
