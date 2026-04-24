@@ -22,7 +22,7 @@ dependencies:
   flutter_background_service_android: ^6.2.5   # ✅ FIXED
   url_launcher: ^6.2.5
   android_intent_plus: ^5.0.2
-  contacts_service_plus: ^0.0.1
+  contacts_service_plus: ^0.0.3
   permission_handler: ^11.0.1
   device_apps: ^2.2.0
 
