@@ -73,14 +73,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.9"
-  device_apps:
+  device_apps_plus:
     dependency: "direct main"
     description:
-      name: device_apps
-      sha256: e84dc74d55749993fd671148cc0bd53096e1be0c268fc364285511b1d8a4c19b
+      name: device_apps_plus
+      sha256: "0dfe4f864664ea291b39e19402ae07e57263941e64c2bf1eeb6ea8cd12824bb8"
       url: "https://pub.dev"
     source: hosted
-    version: "2.2.0"
+    version: "1.0.2"
   fake_async:
     dependency: transitive
     description:

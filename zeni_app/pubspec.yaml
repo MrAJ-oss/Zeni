@@ -24,9 +24,9 @@ dependencies:
   android_intent_plus: ^5.0.2
   contacts_service_plus: ^0.0.3
   permission_handler: ^11.0.1
-  device_apps: ^2.2.0
 
   cupertino_icons: ^1.0.8
+  device_apps_plus: ^1.0.2
 
 dev_dependencies:
   flutter_test:
