@@ -1,22 +1,22 @@
 import 'package:record/record.dart';
 
 class ZeniRecorder {
-  final AudioRecorder _recorder = AudioRecorder();
+  final Record _recorder = Record();
 
   Future<void> startRecording() async {
+    // Check permission
     final hasPermission = await _recorder.hasPermission();
 
-    if (hasPermission != true) {
+    if (!hasPermission) {
       throw Exception("Mic permission denied");
     }
 
+    // Start recording
     await _recorder.start(
-      const RecordConfig(
-        encoder: AudioEncoder.wav,
-        sampleRate: 16000,
-        bitRate: 128000,
-      ),
       path: 'zeni_audio.wav',
+      encoder: AudioEncoder.wav,
+      bitRate: 128000,
+      samplingRate: 16000,
     );
   }
 

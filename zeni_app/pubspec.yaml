@@ -16,17 +16,18 @@ dependencies:
   shared_preferences: ^2.2.2
   speech_to_text: ^6.6.0
   flutter_tts: ^3.8.5
-  record: ^5.0.0
-
+  record: ^4.4.4
   flutter_background_service: ^5.0.5
-  flutter_background_service_android: ^6.2.5   # ✅ FIXED
+  flutter_background_service_android: ^6.2.5
   url_launcher: ^6.2.5
   android_intent_plus: ^5.0.2
+
   contacts_service_plus: ^0.0.3
+  device_apps_plus: ^1.0.2
+
   permission_handler: ^11.0.1
 
   cupertino_icons: ^1.0.8
-  device_apps_plus: ^1.0.2
 
 dev_dependencies:
   flutter_test:
@@ -35,6 +36,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  assets:
-    - assets/hey_zeni.ppn
