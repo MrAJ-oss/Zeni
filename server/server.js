@@ -1,6 +1,5 @@
 import express from "express";
 import fetch from "node-fetch";
-import fs from "fs";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -8,43 +7,44 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-const MEMORY_FILE = "memory.json";
+const PORT = process.env.PORT || 3000;
 
-// load memory
-function loadMemory() {
-  if (!fs.existsSync(MEMORY_FILE)) return [];
-  return JSON.parse(fs.readFileSync(MEMORY_FILE, "utf-8"));
-}
+app.get("/", (req, res) => {
+  res.send("Zeni Cloud AI Running 🚀");
+});
 
-// save memory
-function saveMemory(memory) {
-  fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
-}
-
-// 🔑 from .env
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 app.post("/api/voice", async (req, res) => {
   const { text } = req.body;
 
-  if (!text) {
-    return res.status(400).json({ error: "No text provided" });
-  }
-
   try {
-    let memory = loadMemory();
+    const lower = text.toLowerCase();
 
-    const context = memory
-      .slice(-5)
-      .map(m => `${m.role}: ${m.text}`)
-      .join("\n");
+    // ===== BASIC COMMANDS =====
+    if (lower.includes("time")) {
+      return res.json({
+        reply: `Current time is ${new Date().toLocaleTimeString()}`
+      });
+    }
 
+    if (lower.includes("date")) {
+      return res.json({
+        reply: `Today is ${new Date().toDateString()}`
+      });
+    }
+
+    // ===== AI PROMPT =====
     const prompt = `
-You are Zeni, a smart futuristic assistant like Jarvis.
-Speak short, confident, and helpful.
+You are Zeni, a smart human-like female AI assistant.
 
-Conversation:
-${context}
+Understand user's emotion from their words.
+
+Rules:
+- If user sounds sad → be supportive and caring
+- If angry → calm them
+- If excited → match energy
+- Talk like a real friend (natural, short, human)
 
 User: ${text}
 Zeni:
@@ -54,30 +54,16 @@ Zeni:
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${GROQ_API_KEY}`
+        Authorization: `Bearer ${GROQ_API_KEY}`
       },
       body: JSON.stringify({
         model: "llama3-8b-8192",
-        messages: [
-          { role: "system", content: "You are Zeni AI assistant." },
-          { role: "user", content: prompt }
-        ]
+        messages: [{ role: "user", content: prompt }]
       })
     });
 
     const data = await response.json();
-
-    if (!data.choices) {
-      console.log(data);
-      return res.status(500).json({ error: "Invalid AI response" });
-    }
-
     const reply = data.choices[0].message.content;
-
-    // save memory
-    memory.push({ role: "User", text });
-    memory.push({ role: "Zeni", text: reply });
-    saveMemory(memory);
 
     res.json({ reply });
 
@@ -87,6 +73,6 @@ Zeni:
   }
 });
 
-app.listen(3000, () => {
-  console.log("🚀 ZENI CLOUD AI running on port 3000");
+app.listen(PORT, () => {
+  console.log(`🚀 Zeni Cloud running on port ${PORT}`);
 });

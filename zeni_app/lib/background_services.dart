@@ -41,7 +41,7 @@ void onStart(ServiceInstance service) async {
       String deviceId = prefs.getString("deviceId") ?? "";
 
       final response = await http.post(
-        Uri.parse("http://10.241.123.58:3000/api/voice"),
+        Uri.parse("https://zeni-1.onrender.com/api/voice"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "text": text,
