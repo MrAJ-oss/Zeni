@@ -1,13 +1,3 @@
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath("com.android.tools.build:gradle:8.1.0")
-    }
-}
-
 allprojects {
     repositories {
         google()
@@ -15,22 +5,20 @@ allprojects {
     }
 }
 
-tasks.register<Delete>("clean") {
-    delete(rootProject.buildDir)
+val newBuildDir: Directory =
+    rootProject.layout.buildDirectory
+        .dir("../../build")
+        .get()
+rootProject.layout.buildDirectory.value(newBuildDir)
+
+subprojects {
+    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+    project.layout.buildDirectory.value(newSubprojectBuildDir)
+}
+subprojects {
+    project.evaluationDependsOn(":app")
 }
 
-// ✅ GLOBAL NAMESPACE FIX (VERY IMPORTANT)
-subprojects {
-    afterEvaluate {
-        if (project.hasProperty("android")) {
-            extensions.findByName("android")?.let { androidExt ->
-                val namespaceField = androidExt.javaClass.getMethod("getNamespace")
-                val currentNamespace = namespaceField.invoke(androidExt) as String?
-                if (currentNamespace == null) {
-                    androidExt.javaClass.getMethod("setNamespace", String::class.java)
-                        .invoke(androidExt, project.group.toString())
-                }
-            }
-        }
-    }
+tasks.register<Delete>("clean") {
+    delete(rootProject.layout.buildDirectory)
 }
