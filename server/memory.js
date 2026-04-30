@@ -1,10 +1,24 @@
 let memory = {
-  name: "Anuj",
+  name: null,
   history: []
 };
 
-function log(text, action) {
-  memory.history.push({ text, action, time: new Date() });
+export function setName(name) {
+  memory.name = name;
 }
 
-module.exports = { memory, log };
+export function getName() {
+  return memory.name;
+}
+
+export function addMessage(role, text) {
+  memory.history.push({ role, text });
+
+  if (memory.history.length > 50) {
+    memory.history.shift();
+  }
+}
+
+export function getHistory() {
+  return memory.history;
+}

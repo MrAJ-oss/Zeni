@@ -1,22 +1,9 @@
-function detectCommand(text) {
-  text = text.toLowerCase();
+export function detectCommand(text) {
+  const t = text.toLowerCase();
 
-  if (text.includes("chrome")) return "chrome";
-  if (text.includes("notepad")) return "notepad";
-  if (text.includes("shutdown")) return "shutdown";
-
-  if (text.includes("youtube")) return "url:https://youtube.com";
+  if (t.includes("show logs")) return "show_logs";
+  if (t.includes("delete logs")) return "delete_logs";
+  if (t.includes("pending devices")) return "pending_devices";
 
   return null;
 }
-
-function extractTarget(text) {
-  text = text.toLowerCase();
-
-  if (text.includes("laptop")) return "laptop";
-  if (text.includes("pc")) return "pc";
-
-  return "all";
-}
-
-module.exports = { detectCommand, extractTarget };

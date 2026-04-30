@@ -1,44 +1,40 @@
-const WebSocket = require("ws");
+import { WebSocketServer } from "ws";
 
-let sockets = {};
+export const connectedDevices = new Map();
 
-function initWebSocket(server) {
-  const wss = new WebSocket.Server({ server });
+export function initWebSocket(server) {
+  const wss = new WebSocketServer({ server });
 
   wss.on("connection", (ws) => {
+    let deviceId = null;
+
     ws.on("message", (msg) => {
       const data = JSON.parse(msg);
 
       if (data.type === "register") {
-        sockets[data.deviceId] = ws;
-        console.log("🔌 Connected:", data.deviceId);
+        deviceId = data.deviceId;
+        connectedDevices.set(deviceId, ws);
+        console.log("Device connected:", deviceId);
       }
     });
 
     ws.on("close", () => {
-      for (let id in sockets) {
-        if (sockets[id] === ws) delete sockets[id];
+      if (deviceId) {
+        connectedDevices.delete(deviceId);
+        console.log("Device disconnected:", deviceId);
       }
     });
   });
-
-  setInterval(() => {
-    for (let id in sockets) {
-      try {
-        sockets[id].send(JSON.stringify({ type: "ping" }));
-      } catch {
-        delete sockets[id];
-      }
-    }
-  }, 5000);
 }
 
-function sendCommand(target, cmd) {
-  for (let id in sockets) {
-    if (target === "all" || id.includes(target)) {
-      sockets[id].send(JSON.stringify({ action: cmd }));
-    }
+// SEND COMMAND
+export function sendToDevice(target, payload) {
+  if (target === "all") {
+    connectedDevices.forEach((ws) => {
+      ws.send(JSON.stringify(payload));
+    });
+  } else {
+    const ws = connectedDevices.get(target);
+    if (ws) ws.send(JSON.stringify(payload));
   }
 }
-
-module.exports = { initWebSocket, sendCommand };

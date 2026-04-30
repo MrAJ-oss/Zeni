@@ -81,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(child: ZeniBubble(isListening: listening)),
+      body: Center(child: ZeniBubble(isListening: listening, onClose: () {  },)),
       floatingActionButton: MicButton(onTap: startListening),
     );
   }

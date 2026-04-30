@@ -1,23 +1,55 @@
-const WebSocket = require("ws");
-const { runCommand } = require("./executor");
+const SERVER = "https://zeni-1.onrender.com/"; // 🔥 CHANGE THIS
 
-const DEVICE_ID = "laptop";
+async function checkCommand() {
+  try {
+    const res = await fetch(`${SERVER}/api/command`);
+    const text = await res.text();
 
-const ws = new WebSocket("ws://localhost:3000");
+    // ❌ If HTML comes, skip
+    if (!text.startsWith("{")) {
+      console.log("⚠️ Not JSON response");
+      return;
+    }
 
-ws.on("open", () => {
-  console.log("🟢 Connected");
+    const data = JSON.parse(text);
 
-  ws.send(JSON.stringify({
-    type: "register",
-    deviceId: DEVICE_ID
-  }));
-});
+    if (!data.command) return;
 
-ws.on("message", (msg) => {
-  const data = JSON.parse(msg);
+    console.log("🔥 Command received:", data.command);
 
-  if (data.action) {
-    runCommand(data.action);
+    // ================= ACTIONS =================
+
+    if (data.command === "shutdown") {
+      require("child_process").exec("shutdown /s /t 0");
+    }
+
+    if (data.command === "restart") {
+      require("child_process").exec("shutdown /r /t 0");
+    }
+
+    if (data.command === "chrome") {
+      require("child_process").exec("start chrome");
+    }
+
+    if (data.command === "notepad") {
+      require("child_process").exec("start notepad");
+    }
+
+    if (data.command === "explorer") {
+      require("child_process").exec("start explorer");
+    }
+
+    if (data.command.startsWith("url:")) {
+      const url = data.command.replace("url:", "");
+      require("child_process").exec(`start ${url}`);
+    }
+
+  } catch (err) {
+    console.log("❌ Error:", err.message);
   }
-});
+}
+
+// 🔁 Run every 2 seconds
+setInterval(checkCommand, 2000);
+
+console.log("💻 PC Client Running...");

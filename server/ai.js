@@ -1,8 +1,13 @@
-function generateReply(name, text, cmd) {
-  if (cmd) {
-    return `Hey ${name}, executing ${cmd}`;
-  }
-  return `Hey ${name}, I didn’t understand that`;
-}
+export function generatePrompt(text, name, history) {
+  return `
+You are Zeni, a smart human-like female AI assistant.
 
-module.exports = { generateReply };
+User: ${name || "Unknown"}
+
+History:
+${history.map(h => `${h.role}: ${h.text}`).join("\n")}
+
+User: ${text}
+Zeni:
+`;
+}
