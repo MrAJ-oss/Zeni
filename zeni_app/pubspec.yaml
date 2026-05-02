@@ -16,7 +16,7 @@ dependencies:
   device_info_plus: ^10.1.0
 
   # Voice
-  speech_to_text: ^6.6.2
+  speech_to_text: ^7.0.0
   flutter_tts: ^3.8.5
 
   # Permissions

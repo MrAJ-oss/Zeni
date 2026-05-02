@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:permission_handler/permission_handler.dart';
-
-import 'services/wake_word_service.dart';
-import 'services/device_service.dart';
-import 'services/phone_control_service.dart';
 
 void main() {
   runApp(const ZeniApp());
@@ -19,119 +15,125 @@ class ZeniApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const ZeniHome(),
+      home: const HomeScreen(),
     );
   }
 }
 
-class ZeniHome extends StatefulWidget {
-  const ZeniHome({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<ZeniHome> createState() => _ZeniHomeState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _ZeniHomeState extends State<ZeniHome> {
-  final tts = FlutterTts();
-  final wake = WakeWordService();
-
+class _HomeScreenState extends State<HomeScreen> {
   final String baseUrl = "https://zeni-1.onrender.com";
 
-  String status = "Starting...";
-  String last = "";
+  late stt.SpeechToText speech;
+  late FlutterTts tts;
+
+  bool isListening = false;
+  String text = "Tap mic and speak";
   String reply = "";
 
   @override
   void initState() {
     super.initState();
-    init();
+    speech = stt.SpeechToText();
+    tts = FlutterTts();
   }
 
-  Future<void> init() async {
-    await Permission.microphone.request();
+  Future<void> startListening() async {
+    bool available = await speech.initialize();
 
-    await DeviceService.init(baseUrl);
+    if (available) {
+      setState(() => isListening = true);
 
-    await wake.init(baseUrl as Null Function());
+      speech.listen(onResult: (result) {
+        setState(() {
+          text = result.recognizedWords;
+        });
 
-    wake.onWakeWordDetected = () {
-      setState(() => status = "Listening...");
-    };
+        if (result.finalResult) {
+          sendCommand(text);
+        }
+      });
+    } else {
+      setState(() => text = "Mic not available");
+    }
+  }
 
-    wake.onCommand = (text) async {
-      last = text;
-      setState(() => status = "Thinking...");
+  Future<void> stopListening() async {
+    await speech.stop();
+    setState(() => isListening = false);
+  }
 
-      // 🔥 LOCAL PHONE COMMANDS
-      if (text.contains("open youtube")) {
-        await PhoneControlService.openApp("com.google.android.youtube");
-        speak("Opening YouTube");
-        return;
-      }
+  Future<void> sendCommand(String text) async {
+    setState(() {
+      reply = "Thinking...";
+    });
 
-      if (text.contains("open chrome")) {
-        await PhoneControlService.openApp("com.android.chrome");
-        speak("Opening Chrome");
-        return;
-      }
-
-      if (text.contains("torch on")) {
-        await PhoneControlService.toggleTorch(true);
-        speak("Torch on");
-        return;
-      }
-
-      if (text.contains("torch off")) {
-        await PhoneControlService.toggleTorch(false);
-        speak("Torch off");
-        return;
-      }
-
-      if (text.contains("volume up")) {
-        await PhoneControlService.changeVolume("up");
-        speak("Volume increased");
-        return;
-      }
-
-      if (text.contains("volume down")) {
-        await PhoneControlService.changeVolume("down");
-        speak("Volume decreased");
-        return;
-      }
-
-      // 🌐 CLOUD
-      final res = await http.post(
-        Uri.parse("$baseUrl/api/voice"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "text": text,
-          "deviceId": DeviceService.deviceId
-        }),
-      );
+    try {
+      final res = await http
+          .post(
+            Uri.parse("$baseUrl/api/voice"),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              "text": text,
+              "deviceId": "mobile123"
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
       final data = jsonDecode(res.body);
 
-      reply = data["reply"];
-      speak(reply);
+      setState(() {
+        reply = data["reply"] ?? "No response";
+      });
 
-      setState(() => status = "Say 'Hey Zeni'");
-    };
+      await tts.speak(reply);
 
-    wake.startListening();
-
-    setState(() => status = "Say 'Hey Zeni'");
-  }
-
-  Future<void> speak(String text) async {
-    await tts.speak(text);
+    } catch (e) {
+      setState(() {
+        reply = "❌ Server error";
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text("Zeni"),
+        backgroundColor: Colors.black,
+      ),
       body: Center(
-        child: Text(status, style: const TextStyle(color: Colors.white)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+
+            Text(
+              text,
+              style: const TextStyle(color: Colors.white),
+            ),
+
+            const SizedBox(height: 20),
+
+            Text(
+              reply,
+              style: const TextStyle(color: Colors.green),
+            ),
+
+            const SizedBox(height: 40),
+
+            FloatingActionButton(
+              onPressed: isListening ? stopListening : startListening,
+              child: Icon(isListening ? Icons.mic : Icons.mic_none),
+            ),
+          ],
+        ),
       ),
     );
   }

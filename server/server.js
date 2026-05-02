@@ -1,199 +1,145 @@
 import express from "express";
 import fetch from "node-fetch";
+import cors from "cors";
 import dotenv from "dotenv";
-
-import {
-  registerDevice,
-  approveDevice,
-  isApproved,
-  getPendingDevices,
-  renameDevice,
-  renameByName,
-  getDevices
-} from "./Device.js";
-
-import { addLog, getLogs, clearLogs } from "./logs.js";
+import { getUser, saveUser } from "./userStore.js";
+import { getDevices, saveDevices } from "./deviceStore.js";
 
 dotenv.config();
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-const API_KEY = process.env.GROQ_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-// 🔥 PC COMMAND STORAGE
-let lastCommand = null;
+let currentCommand = null;
 
-// ================= ROOT =================
+// ROOT
 app.get("/", (req, res) => {
   res.send("Zeni Running 🚀");
 });
 
-// ================= DEVICE =================
-app.post("/api/register", (req, res) => {
-  const { id, name } = req.body;
-  res.json(registerDevice(id, name));
-});
+// FIRST SETUP
+app.post("/api/setup", (req, res) => {
+  const { name, password, deviceId } = req.body;
 
-app.post("/api/approve", (req, res) => {
-  const { id } = req.body;
-  res.json(approveDevice(id));
-});
+  if (getUser()) {
+    return res.json({ success: false });
+  }
 
-app.get("/api/pending", (req, res) => {
-  res.json(getPendingDevices());
-});
+  const user = {
+    name,
+    password,
+    devices: [deviceId]
+  };
 
-// ================= LOGS =================
-app.get("/api/logs", (req, res) => {
-  res.json(getLogs());
-});
-
-app.delete("/api/logs", (req, res) => {
-  clearLogs();
+  saveUser(user);
   res.json({ success: true });
 });
 
-// ================= PC CLIENT =================
-app.get("/api/command", (req, res) => {
-  const cmd = lastCommand;
-  lastCommand = null;
-  res.json({ command: cmd });
+// LOGIN
+app.post("/api/login", (req, res) => {
+  const { password, deviceId } = req.body;
+
+  const user = getUser();
+  if (!user) return res.json({ success: false });
+
+  if (password !== user.password) {
+    return res.json({ success: false });
+  }
+
+  if (!user.devices.includes(deviceId)) {
+    user.devices.push(deviceId);
+    saveUser(user);
+  }
+
+  res.json({ success: true });
 });
 
-// ================= MAIN =================
+// DEVICE PING
+app.post("/api/ping", (req, res) => {
+  const { deviceId, name, type } = req.body;
+
+  let devices = getDevices();
+  const now = Date.now();
+
+  let device = devices.find(d => d.id === deviceId);
+
+  if (!device) {
+    device = { id: deviceId, name, type, lastSeen: now };
+    devices.push(device);
+  } else {
+    device.lastSeen = now;
+  }
+
+  saveDevices(devices);
+  res.json({ ok: true });
+});
+
+// CHECK ONLINE
+function isDeviceOnline(deviceId) {
+  const devices = getDevices();
+  const device = devices.find(d => d.id === deviceId);
+
+  if (!device) return false;
+
+  return (Date.now() - device.lastSeen) < 5000;
+}
+
+// VOICE
 app.post("/api/voice", async (req, res) => {
   const { text, deviceId } = req.body;
-  const lower = text.toLowerCase();
 
-  // 🔐 BLOCK UNAUTHORIZED
-  if (!isApproved(deviceId)) {
-    addLog("BLOCKED", deviceId, text);
-    return res.json({
-      reply: "You are not my user. Access denied."
-    });
+  const user = getUser();
+  if (!user || !user.devices.includes(deviceId)) {
+    return res.json({ reply: "Access denied" });
   }
 
-  // ================= DEVICE COMMANDS =================
+  let targetDevice = user.devices[0];
 
-  if (lower.startsWith("rename this device to")) {
-    const newName = text.replace(/rename this device to/i, "").trim();
-    renameDevice(deviceId, newName);
-
-    return res.json({
-      reply: `This device is now named ${newName}`
-    });
+  if (text.toLowerCase().includes("laptop")) {
+    targetDevice = user.devices.find(d => d !== deviceId) || targetDevice;
   }
 
-  if (lower.startsWith("rename device")) {
-    const parts = text.split("to");
-
-    if (parts.length === 2) {
-      const oldName = parts[0].replace(/rename device/i, "").trim();
-      const newName = parts[1].trim();
-
-      renameByName(oldName, newName);
-
-      return res.json({
-        reply: `Renamed ${oldName} to ${newName}`
-      });
-    }
+  if (!isDeviceOnline(targetDevice)) {
+    return res.json({ reply: "Device is not reachable right now" });
   }
 
-  if (lower.includes("my devices")) {
-    return res.json({
-      reply: JSON.stringify(getDevices())
-    });
-  }
-
-  // ================= PC COMMANDS =================
-
-  if (lower.includes("shutdown pc")) {
-    lastCommand = "shutdown";
-    return res.json({ reply: "Shutting down your PC" });
-  }
-
-  if (lower.includes("restart pc")) {
-    lastCommand = "restart";
-    return res.json({ reply: "Restarting your PC" });
-  }
-
-  if (lower.includes("open chrome on pc")) {
-    lastCommand = "chrome";
-    return res.json({ reply: "Opening Chrome on your PC" });
-  }
-
-  if (lower.includes("open notepad")) {
-    lastCommand = "notepad";
-    return res.json({ reply: "Opening Notepad" });
-  }
-
-  if (lower.includes("open files")) {
-    lastCommand = "explorer";
-    return res.json({ reply: "Opening File Explorer" });
-  }
-
-  if (lower.includes("youtube on pc")) {
-    lastCommand = "url:https://youtube.com";
-    return res.json({ reply: "Opening YouTube on your PC" });
-  }
-
-  // ================= LOG COMMANDS =================
-
-  if (lower.includes("show logs")) {
-    return res.json({ reply: JSON.stringify(getLogs()) });
-  }
-
-  if (lower.includes("delete logs")) {
-    clearLogs();
-    return res.json({ reply: "Logs cleared" });
-  }
-
-  if (lower.includes("pending devices")) {
-    return res.json({
-      reply: JSON.stringify(getPendingDevices())
-    });
-  }
-
-  // ================= FAST AI =================
+  if (text.toLowerCase().includes("chrome")) currentCommand = "chrome";
+  if (text.toLowerCase().includes("shutdown")) currentCommand = "shutdown";
 
   try {
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${API_KEY}`
-        },
-        body: JSON.stringify({
-          model: "llama3-8b-8192",
-          messages: [
-            {
-              role: "user",
-              content: `Reply short, smart, friendly: ${text}`
-            }
-          ],
-          max_tokens: 80,
-          temperature: 0.7
-        })
-      }
-    );
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "llama3-8b-8192",
+        messages: [{ role: "user", content: text }]
+      })
+    });
 
     const data = await response.json();
     const reply = data.choices[0].message.content;
 
     res.json({ reply });
 
-  } catch (err) {
-    res.json({
-      reply: "Server error, try again"
-    });
+  } catch {
+    res.json({ reply: "AI error" });
   }
 });
 
-// ================= START =================
+// COMMAND
+app.get("/api/command", (req, res) => {
+  const cmd = currentCommand;
+  currentCommand = null;
+  res.json({ command: cmd });
+});
+
 app.listen(PORT, () => {
-  console.log("Zeni running on port " + PORT);
+  console.log("🚀 Zeni running on port", PORT);
 });
