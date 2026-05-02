@@ -1,49 +1,40 @@
 import 'package:flutter/material.dart';
 
-class ZeniBubble extends StatefulWidget {
+class ZeniBubble extends StatelessWidget {
+  final bool isListening;
   final VoidCallback onClose;
 
-  const ZeniBubble({super.key, required this.onClose, required bool isListening});
-
-  @override
-  State<ZeniBubble> createState() => _ZeniBubbleState();
-}
-
-class _ZeniBubbleState extends State<ZeniBubble> {
-  Offset position = const Offset(120, 400);
+  const ZeniBubble({
+    super.key,
+    required this.isListening,
+    required this.onClose,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      left: position.dx,
-      top: position.dy,
-      child: GestureDetector(
-        onPanUpdate: (details) {
-          setState(() {
-            position += details.delta;
-          });
-        },
-        onTap: widget.onClose,
-        child: Container(
-          width: 70,
-          height: 70,
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 140,
+          height: 140,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Colors.blue, Colors.purple],
-            ),
-            boxShadow: [
-              BoxShadow(
-                // ignore: deprecated_member_use
-                color: Colors.blueAccent.withOpacity(0.6),
-                blurRadius: 20,
-                spreadRadius: 5,
-              )
-            ],
+            color: isListening ? Colors.blueAccent : Colors.black,
           ),
-          child: const Icon(Icons.graphic_eq, color: Colors.white, size: 35),
+          child: const Center(
+            child: Text(
+              "Zeni",
+              style: TextStyle(color: Colors.white, fontSize: 20),
+            ),
+          ),
         ),
-      ),
+        const SizedBox(height: 20),
+        Text(
+          isListening ? "Listening..." : "Ready",
+          style: const TextStyle(fontSize: 16),
+        ),
+      ],
     );
   }
 }

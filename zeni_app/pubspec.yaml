@@ -11,21 +11,24 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Core
   http: ^1.2.1
   shared_preferences: ^2.2.2
   device_info_plus: ^10.1.0
 
-  # Voice
+  # Voice & AI interaction (future-ready)
   speech_to_text: ^7.0.0
   flutter_tts: ^3.8.5
 
-  # Permissions
+  # Permissions (mic, overlay later)
   permission_handler: ^11.3.0
 
-  # Optional but useful
+  # Utilities
   url_launcher: ^6.2.6
 
+  # UI
   cupertino_icons: ^1.0.8
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -33,3 +36,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/images/zeni_logo.png
