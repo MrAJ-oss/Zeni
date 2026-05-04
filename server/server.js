@@ -11,13 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 const FILE = "./user.json";
-
 const GROQ_KEY = process.env.GROQ_API_KEY;
-
-if (!GROQ_KEY) {
-  console.error("❌ Missing GROQ_API_KEY");
-  process.exit(1);
-}
 
 // ===== STORAGE =====
 function getUser() {
@@ -29,42 +23,16 @@ function saveUser(user) {
   fs.writeFileSync(FILE, JSON.stringify(user, null, 2));
 }
 
-// ===== SMART MEMORY (FASTER + CLEAN) =====
+// ===== MEMORY =====
 function getMemory(user) {
-  return user.memory
-    .slice(-3) // ⚡ reduce tokens → faster
-    .map(m => `User: ${m.user}\nZeni: ${m.zeni}`)
-    .join("\n");
+  return user.memory.slice(-3).map(m =>
+    `User: ${m.user}\nZeni: ${m.zeni}`
+  ).join("\n");
 }
 
-// ===== HUMAN PERSONALITY PROMPT =====
-const SYSTEM_PROMPT = `
-You are Zeni.
-
-You are:
-- calm
-- emotionally aware
-- slightly playful
-- curious like a human
-- not robotic
-
-Rules:
-- Keep replies short (1–2 lines max)
-- Ask questions naturally sometimes
-- Show curiosity
-- Sound natural, not AI
-- If user is emotional → respond with care
-
-Do NOT:
-- give long paragraphs
-- sound like assistant
-`;
-
-// ===== AI BRAIN =====
+// ===== AI =====
 async function zeniBrain(text, user) {
   try {
-    const memory = getMemory(user);
-
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -74,10 +42,16 @@ async function zeniBrain(text, user) {
       body: JSON.stringify({
         model: "llama3-70b-8192",
         temperature: 0.7,
-        max_tokens: 80, // ⚡ fast + short replies
+        max_tokens: 80,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: memory + "\nUser: " + text }
+          {
+            role: "system",
+            content: "You are Zeni. Be human, emotional, curious. Keep replies short."
+          },
+          {
+            role: "user",
+            content: getMemory(user) + "\nUser: " + text
+          }
         ]
       })
     });
@@ -85,58 +59,29 @@ async function zeniBrain(text, user) {
     const data = await response.json();
 
     return {
-      type: "chat",
       reply: data.choices?.[0]?.message?.content || "Hmm?"
     };
 
-  } catch (e) {
-    return { type: "chat", reply: "Something went wrong." };
+  } catch {
+    return { reply: "Something went wrong." };
   }
 }
 
 // ===== ROUTES =====
 
-app.get("/status", (req, res) => {
-  const user = getUser();
-  res.json({ hasUser: !!user });
-});
-
 app.post("/setup", (req, res) => {
-  const { name, password, deviceId } = req.body;
+  const { name, password } = req.body;
 
   if (getUser()) return res.json({ status: "exists" });
 
   const user = {
     name,
     password,
-    devices: [deviceId],
-    pendingDevices: [],
     memory: []
   };
 
   saveUser(user);
   res.json({ status: "created" });
-});
-
-app.post("/login", (req, res) => {
-  const { password, deviceId } = req.body;
-
-  const user = getUser();
-
-  if (!user) return res.json({ status: "no_user" });
-
-  if (user.password !== password)
-    return res.json({ status: "wrong" });
-
-  if (!user.devices.includes(deviceId)) {
-    if (!user.pendingDevices.includes(deviceId)) {
-      user.pendingDevices.push(deviceId);
-      saveUser(user);
-    }
-    return res.json({ status: "pending" });
-  }
-
-  res.json({ status: "ok" });
 });
 
 app.post("/voice", async (req, res) => {
@@ -145,14 +90,10 @@ app.post("/voice", async (req, res) => {
 
   const result = await zeniBrain(text, user);
 
-  user.memory.push({
-    user: text,
-    zeni: result.reply
-  });
-
+  user.memory.push({ user: text, zeni: result.reply });
   saveUser(user);
 
   res.json(result);
 });
 
-app.listen(3000, () => console.log("🚀 Zeni GOD MODE running"));
+app.listen(3000, () => console.log("🚀 Server running"));
