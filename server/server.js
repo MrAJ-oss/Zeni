@@ -3,6 +3,7 @@ import fs from "fs";
 import cors from "cors";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
+import FormData from "form-data";
 
 dotenv.config();
 
@@ -13,9 +14,24 @@ app.use(express.json());
 const FILE = "./user.json";
 const GROQ_KEY = process.env.GROQ_API_KEY;
 
+// ===== DEFAULT USER =====
+const DEFAULT_USER = {
+  name: "Anuj",
+  password: "iamfuturebillionare",
+  devices: [
+    { id: "mobile_001", name: "My Phone", approved: true }
+  ],
+  pendingDevices: [],
+  logs: [],
+  memory: []
+};
+
 // ===== STORAGE =====
 function getUser() {
-  if (!fs.existsSync(FILE)) return null;
+  if (!fs.existsSync(FILE)) {
+    fs.writeFileSync(FILE, JSON.stringify(DEFAULT_USER, null, 2));
+    return DEFAULT_USER;
+  }
   return JSON.parse(fs.readFileSync(FILE));
 }
 
@@ -23,17 +39,10 @@ function saveUser(user) {
   fs.writeFileSync(FILE, JSON.stringify(user, null, 2));
 }
 
-// ===== MEMORY =====
-function getMemory(user) {
-  return user.memory.slice(-3).map(m =>
-    `User: ${m.user}\nZeni: ${m.zeni}`
-  ).join("\n");
-}
-
 // ===== AI =====
 async function zeniBrain(text, user) {
   try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${GROQ_KEY}`,
@@ -41,59 +50,107 @@ async function zeniBrain(text, user) {
       },
       body: JSON.stringify({
         model: "llama3-70b-8192",
-        temperature: 0.7,
-        max_tokens: 80,
         messages: [
-          {
-            role: "system",
-            content: "You are Zeni. Be human, emotional, curious. Keep replies short."
-          },
-          {
-            role: "user",
-            content: getMemory(user) + "\nUser: " + text
-          }
+          { role: "system", content: "You are Zeni. Be human, emotional, curious." },
+          { role: "user", content: text }
         ]
       })
     });
 
-    const data = await response.json();
-
-    return {
-      reply: data.choices?.[0]?.message?.content || "Hmm?"
-    };
-
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || "Hmm?";
   } catch {
-    return { reply: "Something went wrong." };
+    return "Something went wrong.";
   }
 }
 
-// ===== ROUTES =====
-
-app.post("/setup", (req, res) => {
-  const { name, password } = req.body;
-
-  if (getUser()) return res.json({ status: "exists" });
-
-  const user = {
-    name,
-    password,
-    memory: []
-  };
-
-  saveUser(user);
-  res.json({ status: "created" });
-});
-
-app.post("/voice", async (req, res) => {
-  const { text } = req.body;
+// ===== LOGIN =====
+app.post("/login", (req, res) => {
+  const { password, deviceId } = req.body;
   const user = getUser();
 
-  const result = await zeniBrain(text, user);
+  if (password !== user.password) {
+    user.logs.push({ type: "wrong_password", deviceId, time: new Date() });
+    saveUser(user);
+    return res.json({ status: "denied" });
+  }
 
-  user.memory.push({ user: text, zeni: result.reply });
-  saveUser(user);
+  const approved = user.devices.find(d => d.id === deviceId);
 
-  res.json(result);
+  if (approved) return res.json({ status: "ok" });
+
+  if (!user.pendingDevices.includes(deviceId)) {
+    user.pendingDevices.push(deviceId);
+    saveUser(user);
+  }
+
+  return res.json({ status: "pending" });
 });
 
-app.listen(3000, () => console.log("🚀 Server running"));
+// ===== VOICE AUTH (PYTHON CALL) =====
+async function verifyVoice(audioBuffer) {
+  const form = new FormData();
+  form.append("audio", audioBuffer, { filename: "voice.wav" });
+
+  try {
+    const res = await fetch("http://localhost:5000/verify", {
+      method: "POST",
+      body: form,
+      headers: form.getHeaders()
+    });
+
+    const data = await res.json();
+    return data.status === "allowed";
+  } catch {
+    return false;
+  }
+}
+
+// ===== VOICE ROUTE =====
+app.post("/voice", async (req, res) => {
+  const { text, deviceId } = req.body;
+  const user = getUser();
+
+  const approved = user.devices.find(d => d.id === deviceId);
+
+  if (!approved) {
+    user.logs.push({ type: "unauthorized_device", deviceId, time: new Date() });
+    saveUser(user);
+    return res.json({ reply: "Access denied" });
+  }
+
+  // 🔥 DEVICE APPROVAL
+  if (text.toLowerCase().includes("approve device")) {
+    const id = user.pendingDevices[0];
+
+    if (id) {
+      user.devices.push({ id, name: "New Device", approved: true });
+      user.pendingDevices = user.pendingDevices.filter(d => d !== id);
+      saveUser(user);
+      return res.json({ reply: "Device approved" });
+    } else {
+      return res.json({ reply: "No pending devices" });
+    }
+  }
+
+  // 🔥 RENAME DEVICE
+  if (text.toLowerCase().includes("rename this device")) {
+    const device = user.devices.find(d => d.id === deviceId);
+    const name = text.split("to")[1]?.trim();
+
+    if (device && name) {
+      device.name = name;
+      saveUser(user);
+      return res.json({ reply: `Now this is ${name}` });
+    }
+  }
+
+  const reply = await zeniBrain(text, user);
+
+  user.memory.push({ user: text, zeni: reply });
+  saveUser(user);
+
+  res.json({ reply });
+});
+
+app.listen(3000, () => console.log("🚀 Zeni backend running"));
