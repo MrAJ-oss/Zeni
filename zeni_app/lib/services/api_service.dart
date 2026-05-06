@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String base = "http://10.0.2.2:3000";
+  static const baseUrl = "https://zeni-1.onrender.com";
 
-  static Future<Map<String, dynamic>> post(String path, Map body) async {
+  static Future<Map<String, dynamic>> post(
+      String endpoint, Map body) async {
     final res = await http.post(
-      Uri.parse("$base/$path"),
+      Uri.parse("$baseUrl/$endpoint"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode(body),
     );

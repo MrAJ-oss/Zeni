@@ -1,17 +1,19 @@
 import 'package:speech_to_text/speech_to_text.dart';
 
 class VoiceService {
-  final SpeechToText _speech = SpeechToText();
+  final SpeechToText speech = SpeechToText();
 
-  Future init() async {
-    await _speech.initialize();
+  Future<void> init() async {
+    await speech.initialize();
   }
 
-  void start(Function(String) onResult) {
-    _speech.listen(onResult: (res) {
-      if (res.finalResult) {
-        onResult(res.recognizedWords);
-      }
-    });
+  void startListening(Function(String) onResult) {
+    speech.listen(
+      onResult: (result) {
+        if (result.finalResult) {
+          onResult(result.recognizedWords);
+        }
+      },
+    );
   }
 }

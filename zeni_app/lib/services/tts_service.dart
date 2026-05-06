@@ -3,8 +3,12 @@ import 'package:flutter_tts/flutter_tts.dart';
 class TTSService {
   final FlutterTts tts = FlutterTts();
 
-  Future speak(String text) async {
-    await tts.stop();
-    await tts.speak(text);
+  TTSService() {
+    tts.setLanguage("en-US");
+    tts.setSpeechRate(0.5);
+  }
+
+  void speak(String text) {
+    tts.speak(text);
   }
 }
