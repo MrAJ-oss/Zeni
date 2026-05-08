@@ -10,87 +10,103 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController controller = TextEditingController();
+  final passwordController = TextEditingController();
 
-  String status = "";
   bool loading = false;
 
   void login() async {
     setState(() {
       loading = true;
-      status = "";
     });
 
     try {
-      final res = await ApiService.post("login", {
-        "password": controller.text,
-        "deviceId": "mobile_001"
-      });
+      final res = await ApiService.post(
+        "login",
+        {
+          "password": passwordController.text,
+        },
+      );
 
-      if (res["status"] == "ok") {
+      if (res["success"] == true) {
+        if (!mounted) return;
+
         Navigator.pushReplacement(
-          // ignore: use_build_context_synchronously
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(
+            builder: (_) => const HomeScreen(),
+          ),
         );
-      } else if (res["status"] == "pending") {
-        setState(() {
-          status = "Waiting for approval...";
-          loading = false;
-        });
       } else {
-        setState(() {
-          status = "Wrong password";
-          loading = false;
-        });
+        showMessage(res["message"]);
       }
     } catch (e) {
-      setState(() {
-        status = "Server error";
-        loading = false;
-      });
+      showMessage("Server error");
     }
+
+    setState(() {
+      loading = false;
+    });
+  }
+
+  void showMessage(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              "Zeni Login",
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 30),
-
-            TextField(
-              controller: controller,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Enter Password",
-                border: OutlineInputBorder(),
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                "Zeni",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 42,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 40),
 
-            ElevatedButton(
-              onPressed: loading ? null : login,
-              child: loading
-                  ? const CircularProgressIndicator()
-                  : const Text("Login"),
-            ),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: "Password",
+                  hintStyle: const TextStyle(color: Colors.white54),
+                  filled: true,
+                  fillColor: Colors.white10,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
 
-            const SizedBox(height: 15),
+              const SizedBox(height: 20),
 
-            Text(
-              status,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ],
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  onPressed: loading ? null : login,
+                  child: loading
+                      ? const CircularProgressIndicator()
+                      : const Text(
+                    "Log In",
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
