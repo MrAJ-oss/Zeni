@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../services/api_service.dart';
 import 'home_screen.dart';
 
@@ -10,24 +12,39 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+
   final passwordController = TextEditingController();
 
   bool loading = false;
 
-  void login() async {
+  Future<void> login() async {
+
+    if (passwordController.text.trim().isEmpty) {
+      showMessage("Enter password");
+      return;
+    }
+
     setState(() {
       loading = true;
     });
 
     try {
+
       final res = await ApiService.post(
         "login",
         {
-          "password": passwordController.text,
+          "password": passwordController.text.trim(),
+          "deviceId": "zeni_mobile"
         },
       );
 
       if (res["success"] == true) {
+
+        final prefs =
+        await SharedPreferences.getInstance();
+
+        await prefs.setBool("loggedIn", true);
+
         if (!mounted) return;
 
         Navigator.pushReplacement(
@@ -36,11 +53,21 @@ class _LoginScreenState extends State<LoginScreen> {
             builder: (_) => const HomeScreen(),
           ),
         );
+
       } else {
-        showMessage(res["message"]);
+
+        showMessage(
+          res["message"] ?? "Login failed",
+        );
       }
+
     } catch (e) {
+
+      // ignore: avoid_print
+      print(e);
+
       showMessage("Server error");
+
     }
 
     setState(() {
@@ -49,21 +76,36 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void showMessage(String text) {
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text)),
+      SnackBar(
+        content: Text(text),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor: Colors.black,
+
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
+
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+
             children: [
+
+              Image.asset(
+                "assets/images/zeni_logo.png",
+                height: 120,
+              ),
+
+              const SizedBox(height: 30),
+
               const Text(
                 "Zeni",
                 style: TextStyle(
@@ -78,30 +120,47 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: passwordController,
                 obscureText: true,
-                style: const TextStyle(color: Colors.white),
+
+                style: const TextStyle(
+                  color: Colors.white,
+                ),
+
                 decoration: InputDecoration(
-                  hintText: "Password",
-                  hintStyle: const TextStyle(color: Colors.white54),
+                  hintText: "Enter Password",
+
+                  hintStyle: const TextStyle(
+                    color: Colors.white54,
+                  ),
+
                   filled: true,
                   fillColor: Colors.white10,
+
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius:
+                    BorderRadius.circular(16),
                   ),
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
 
               SizedBox(
                 width: double.infinity,
                 height: 55,
+
                 child: ElevatedButton(
-                  onPressed: loading ? null : login,
+                  onPressed:
+                  loading ? null : login,
+
                   child: loading
-                      ? const CircularProgressIndicator()
+                      ? const CircularProgressIndicator(
+                    color: Colors.white,
+                  )
                       : const Text(
                     "Log In",
-                    style: TextStyle(fontSize: 18),
+                    style: TextStyle(
+                      fontSize: 18,
+                    ),
                   ),
                 ),
               ),
