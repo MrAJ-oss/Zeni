@@ -63,7 +63,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     } catch (e) {
 
-      // ignore: avoid_print
       print(e);
 
       showMessage("Server error");
