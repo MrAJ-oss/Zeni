@@ -11,7 +11,6 @@ import '../services/memory_service.dart';
 import '../services/log_service.dart';
 
 import '../widgets/zeni_bubble.dart';
-import '../widgets/mic_button.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -70,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!allowed) {
 
-        await tts.speak(
+        tts.speak(
           "Access denied",
         );
 
@@ -118,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
         "Zeni: $response",
       );
 
-      await tts.speak(response);
+      tts.speak(response);
 
       LogService.add(
         "Zeni replied: $response",
@@ -151,10 +150,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
           text: statusText,
         ),
-      ),
-
-      floatingActionButton: MicButton(
-        onTap: startListening,
       ),
     );
   }

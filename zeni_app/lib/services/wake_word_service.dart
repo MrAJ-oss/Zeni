@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:speech_to_text/speech_to_text.dart';
 
 class WakeWordService {
@@ -66,6 +68,7 @@ class WakeWordService {
 
       pauseFor: const Duration(days: 1),
 
+      // ignore: deprecated_member_use
       partialResults: true,
 
       localeId: "en_US",

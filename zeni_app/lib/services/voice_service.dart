@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:speech_to_text/speech_to_text.dart';
 
 class VoiceService {
@@ -21,6 +23,7 @@ class VoiceService {
 
       localeId: "en_US",
 
+      // ignore: deprecated_member_use
       listenMode: ListenMode.confirmation,
 
       onResult: (result) {

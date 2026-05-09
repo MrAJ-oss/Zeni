@@ -7,7 +7,7 @@ class ZeniBubble extends StatelessWidget {
   const ZeniBubble({
     super.key,
     required this.isListening,
-    required this.onClose,
+    required this.onClose, required String text,
   });
 
   @override
