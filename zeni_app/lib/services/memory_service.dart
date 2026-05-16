@@ -1,22 +1,28 @@
+// History is now stored server-side per deviceId.
+// This service only manages the local display list for the chat UI.
+
 class MemoryService {
+  static List<Map<String, String>> _messages = [];
 
-  static final List<String> _memory = [];
-
-  static void add(String text) {
-
-    _memory.add(text);
-
-    // ignore: avoid_print
-    print("Memory added: $text");
+  // Load messages fetched from server into local display list
+  static void setMessages(List<Map<String, String>> messages) {
+    _messages = List.from(messages);
   }
 
-  static List<String> getAll() {
-
-    return _memory;
+  // Add a message to local display list
+  static void add(String role, String content) {
+    _messages.add({"role": role, "content": content});
   }
 
+  // Get all messages for UI display
+  static List<Map<String, String>> getMessages() {
+    return List.from(_messages);
+  }
+
+  // Clear local display list
   static void clear() {
-
-    _memory.clear();
+    _messages.clear();
   }
+
+  static int get count => _messages.length;
 }
