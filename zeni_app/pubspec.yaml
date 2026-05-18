@@ -19,7 +19,7 @@ dependencies:
   # Voice
   speech_to_text: ^7.0.0
   flutter_tts: ^3.8.5
-  record: ^5.1.2
+  record: ^6.1.1
 
   # Connectivity
   connectivity_plus: ^6.0.3
@@ -30,7 +30,9 @@ dependencies:
   # Permissions
   permission_handler: ^11.3.0
 
-  # Utils
+  # Device control
+  battery_plus: ^6.0.1
+  volume_controller: ^2.0.7
   url_launcher: ^6.2.6
 
   # UI

@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: unrelated_type_equality_checks, avoid_print
 
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -7,9 +7,11 @@ import '../services/voice_service.dart';
 import '../services/tts_service.dart';
 import '../services/api_service.dart';
 import '../services/local_command_service.dart';
+import '../services/device_command_service.dart';
 import '../services/tone_service.dart';
 import '../services/memory_service.dart';
 import '../services/log_service.dart';
+import '../services/overlay_service.dart';
 
 import '../widgets/zeni_bubble.dart';
 import '../widgets/chat_message.dart';
@@ -29,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool listening = false;
   bool thinking = false;
   bool isOnline = true;
+  bool overlayRunning = false;
   String statusText = "Tap mic to talk to Zeni";
 
   @override
@@ -47,6 +50,12 @@ class _HomeScreenState extends State<HomeScreen> {
     await voice.init();
     await checkConnectivity();
     await loadHistoryFromServer();
+    await checkOverlayStatus();
+  }
+
+  Future<void> checkOverlayStatus() async {
+    final running = await OverlayService.isRunning();
+    if (mounted) setState(() => overlayRunning = running);
   }
 
   Future<void> loadHistoryFromServer() async {
@@ -65,16 +74,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> checkConnectivity() async {
     final result = await Connectivity().checkConnectivity();
-    if (mounted) {
-      // ignore: unrelated_type_equality_checks
-      setState(() => isOnline = result != ConnectivityResult.none);
-    }
-
+    if (mounted) setState(() => isOnline = result != ConnectivityResult.none);
     Connectivity().onConnectivityChanged.listen((result) {
-      if (mounted) {
-        // ignore: unrelated_type_equality_checks
-        setState(() => isOnline = result != ConnectivityResult.none);
-      }
+      if (mounted) setState(() => isOnline = result != ConnectivityResult.none);
     });
   }
 
@@ -84,6 +86,34 @@ class _HomeScreenState extends State<HomeScreen> {
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
+      );
+    }
+  }
+
+  Future<void> toggleOverlay() async {
+    if (overlayRunning) {
+      await OverlayService.stop();
+      setState(() => overlayRunning = false);
+      showSnack("Floating mic turned off");
+    } else {
+      final result = await OverlayService.start();
+      if (result == "permission_needed") {
+        showSnack("Please grant overlay permission and try again");
+      } else if (result == "started") {
+        setState(() => overlayRunning = true);
+        showSnack("Floating mic is now active on all screens");
+      }
+    }
+  }
+
+  void showSnack(String msg) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: Colors.blueAccent,
+          duration: const Duration(seconds: 3),
+        ),
       );
     }
   }
@@ -112,25 +142,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
         LogService.add("User said: $text");
 
-        String tone = ToneService.detectTone(text);
         String response;
+        final isLocalCmd = LocalCommandService.isLocalCommand(text);
 
-        if (!isOnline) {
-          response = LocalCommandService.process(text);
+        if (isLocalCmd) {
+          response = await DeviceCommandService.execute(text);
+        } else if (!isOnline) {
+          response = LocalCommandService.offlineResponse(text);
         } else {
           try {
+            final tone = ToneService.detectTone(text);
             final res = await ApiService.post("chat", {
               "message": text,
               "deviceId": ApiService.deviceId,
             });
             response = res["reply"] ?? "I could not understand that.";
+            response = ToneService.modifyResponse(response, tone);
           } catch (e) {
             print("API error: $e");
-            response = LocalCommandService.process(text);
+            response = LocalCommandService.offlineResponse(text);
           }
         }
-
-        response = ToneService.modifyResponse(response, tone);
 
         MemoryService.add("assistant", response);
         LogService.add("Zeni replied: $response");
@@ -142,6 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
           statusText = "Tap mic to talk to Zeni";
         });
 
+        setState(() {});
         WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
 
         tts.speak(response);
@@ -153,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
           thinking = false;
           statusText = isOnline
               ? "Could not hear you. Try again."
-              : "Offline. Say a local command.";
+              : "Offline. Say a command.";
         });
       },
     );
@@ -171,10 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // ── Top Bar ───────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -190,39 +220,75 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        width: 8,
-                        height: 8,
+                        width: 8, height: 8,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: isOnline
-                              ? Colors.greenAccent
-                              : Colors.redAccent,
+                          color: isOnline ? Colors.greenAccent : Colors.redAccent,
                         ),
                       ),
                       const SizedBox(width: 6),
                       Text(
                         isOnline ? "online" : "offline",
-                        style: const TextStyle(
-                          color: Colors.white24,
-                          fontSize: 11,
-                        ),
+                        style: const TextStyle(color: Colors.white24, fontSize: 11),
                       ),
                     ],
                   ),
-                  GestureDetector(
-                    onTap: () async {
-                      await ApiService.delete(
-                          "history/${ApiService.deviceId}");
-                      MemoryService.clear();
-                      if (mounted) setState(() {});
-                    },
-                    child: Text(
-                      "${MemoryService.count} memories",
-                      style: const TextStyle(
-                        color: Colors.white24,
-                        fontSize: 12,
+                  Row(
+                    children: [
+
+                      // Overlay toggle button
+                      GestureDetector(
+                        onTap: toggleOverlay,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: overlayRunning
+                                // ignore: deprecated_member_use
+                                ? Colors.blueAccent.withOpacity(0.3)
+                                : Colors.white10,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: overlayRunning
+                                  ? Colors.blueAccent
+                                  : Colors.white24,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                overlayRunning ? Icons.mic : Icons.mic_off,
+                                color: overlayRunning ? Colors.blueAccent : Colors.white38,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                overlayRunning ? "Float ON" : "Float OFF",
+                                style: TextStyle(
+                                  color: overlayRunning ? Colors.blueAccent : Colors.white38,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+
+                      const SizedBox(width: 12),
+
+                      // Memory clear
+                      GestureDetector(
+                        onTap: () async {
+                          await ApiService.delete("history/${ApiService.deviceId}");
+                          MemoryService.clear();
+                          if (mounted) setState(() {});
+                        },
+                        child: Text(
+                          "${MemoryService.count} memories",
+                          style: const TextStyle(color: Colors.white24, fontSize: 12),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -244,10 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? const Center(
                       child: Text(
                         "Say something to start talking with Zeni",
-                        style: TextStyle(
-                          color: Colors.white12,
-                          fontSize: 13,
-                        ),
+                        style: TextStyle(color: Colors.white12, fontSize: 13),
                         textAlign: TextAlign.center,
                       ),
                     )
@@ -268,8 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor:
-            listening ? Colors.redAccent : Colors.blueAccent,
+        backgroundColor: listening ? Colors.redAccent : Colors.blueAccent,
         onPressed: startListening,
         child: Icon(
           listening ? Icons.stop : Icons.mic,
