@@ -64,4 +64,4 @@ If a feature isn't listed here as tested, treat it as unverified until you've ru
 
 ## License
 
-Not yet decided — add one before this repo goes public.
+
