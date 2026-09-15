@@ -1,67 +1,729 @@
-# Zeni
+# Zeni 🤖
 
-A personal AI companion built to feel like a friend, not an assistant — with real memory, real device control, and a safety architecture built around one rule: nothing pretends to have happened that didn't.
+> A personal AI assistant designed to bring conversation, memory, automation, voice, devices, and intelligent tools into one unified ecosystem.
 
-Zeni runs on whatever model you point her at via OpenRouter — she isn't a new model, she's an architecture: persistent memory, personality, and real integration with your actual devices and files, wrapped around models that already exist.
+Zeni is a personal AI assistant project focused on building a single, extensible intelligence that can understand the user, remember relevant context, interact through voice, work with connected devices, and eventually perform real-world tasks through controlled tools and automation.
 
-## What she actually does
+The goal is simple:
 
-**Talks like a friend, not a chatbot.** Central personality config (trust, teasing, directness — she pushes back because she's on your side, not despite it), persistent memory that's actually relevance-ranked (TF-IDF, not a keyword dump), full conversation history.
+**One assistant. One intelligence. One ecosystem.**
 
-**Real voice.** Whisper transcription in, neural TTS out (ElevenLabs if you configure a voice, OpenRouter's own TTS otherwise) — not the robotic on-device OS voice.
+---
 
-**Sees and reacts.** Camera-triggered reactions (one multimodal call — sees the frame and responds in personality in a single request, not a separate "vision AI" bolted to a separate "personality AI"). Geofencing greets you when you get home. Web search when she needs current information, not by default.
+## ✨ What is Zeni?
 
-**Controls your PC — safely.** File read/write, clipboard, app launching, even real-time mouse/keyboard control — every risky action gated behind an actual approval queue, not just a flag that does nothing. Four files are permanently off-limits to self-editing: the ones that decide what's allowed to happen.
+Zeni is more than a conventional chatbot.
 
-**Builds herself, safely.** Ask for a feature, she builds it in an isolated sandbox copy, runs it on a separate port so you can actually test it live, and only a single approved action ever promotes a file into the real, running app.
+It is designed as a modular AI ecosystem where different capabilities work together behind a unified assistant.
 
-**Calls people by first name.** Fuzzy contact matching, not exact strings — "call Pranav" finds Pranav DYP.
+Core areas include:
 
-**Knows security.** Sentinel: IP reputation lookups, security event logging (link scanning needs a threat-intel provider you haven't configured yet — see below).
+* 🧠 AI reasoning
+* 💾 Long-term memory
+* 💬 Conversation management
+* 🎙️ Voice interaction
+* 🔐 Voice authentication
+* ❤️ Emotion intelligence
+* 💻 PC/device interaction
+* ⚙️ Automation
+* 🛠️ Coding assistance
+* 🔎 Research assistance
+* 📋 Project assistance
+* 📈 Business and strategy assistance
+* 🛡️ Defensive security concepts through Zeni Sentinel
+* 🔌 Extensible external integrations
 
-**Remembers what actually happened.** Every tool call, every approval, every rejection — logged. Nothing claims success it didn't earn.
+---
 
-## Architecture
+## 🏗️ Architecture
 
+Zeni is designed around multiple specialized components rather than putting everything into one server.
+
+```text
+                         ┌───────────────────┐
+                         │     Zeni App      │
+                         │  UI / Voice / UX  │
+                         └─────────┬─────────┘
+                                   │
+                                   ▼
+                         ┌───────────────────┐
+                         │   Zeni Main API   │
+                         │    AI / Memory    │
+                         │ Tools / Sessions  │
+                         └───────┬─────┬─────┘
+                                 │     │
+                    ┌────────────┘     └─────────────┐
+                    ▼                                ▼
+          ┌──────────────────┐             ┌──────────────────┐
+          │   NOVA Service   │             │  Voice Auth      │
+          │ Emotion / Tone   │             │     Service      │
+          └──────────────────┘             └──────────────────┘
+                                      
+                                      
+                         ┌───────────────────┐
+                         │    PC Agent       │
+                         │ Local PC Control   │
+                         └───────────────────┘
 ```
-client/              Flutter app — voice-first, one main screen, edge-swipe drawer for features
-server/               Node/Express — the brain: chat, memory, tools, approvals, all of it
-pc-agent/             Runs on your actual computer — the only thing with real device access
-voice-auth-service/   Python/FastAPI — real speaker verification, runs locally, no cloud dependency
-nova-service/         Python/FastAPI — real sentiment analysis, same deal
-.github/workflows/    Keep-alive ping so Render's free tier doesn't cold-start on you
+
+The exact deployment architecture may evolve as Zeni develops.
+
+The important principle is that each subsystem has a clearly defined responsibility.
+
+---
+
+## 🧠 AI Brain
+
+Zeni uses an AI provider abstraction so the rest of the application does not need to be tightly coupled to a single model provider.
+
+The current architecture uses **OpenRouter** as the model-routing layer.
+
+Conceptually:
+
+```text
+Zeni
+  ↓
+AI Service
+  ↓
+Model Router
+  ↓
+OpenRouter
+  ↓
+Selected AI Model
 ```
 
-Every risky capability follows the same shape: **request → validate → (approve if it's genuinely risky) → execute → log.** The LLM never directly executes anything — it can only ask.
+This allows models to be changed without rewriting the rest of Zeni.
 
-## Setup
+---
 
-See `zeni-setup-guide.md` if you have it, or:
+## 💾 Memory
 
-1. `cd server && npm install`, copy `.env.example` to `.env`, add your `OPENROUTER_API_KEY`, `MAIN_PASSWORD`, `JWT_SECRET`
-2. `node index.js` to test locally, then deploy (Render, etc.)
-3. `cd client`, run `flutter create --org com.yourname .` to generate the native project files (not included — see note below), restore `lib/` and `pubspec.yaml`, `flutter pub get`, build
-4. Optional: run `voice-auth-service/` and `nova-service/` locally for real voice ID and emotion reading
-5. Optional: run `pc-agent/` on your computer for file/device control
+Memory is a core part of Zeni.
 
-## Honest status — what's real vs. what isn't
+Zeni is designed to distinguish between:
 
-This matters more than a feature list. Nothing here claims to work unless it's been tested.
+* Current conversation context
+* Long-term memories
+* User preferences
+* Project context
+* Relevant historical information
+* Other structured context
 
-**Tested and confirmed working:** chat/memory/device/tool core, the approval queue (proven end-to-end with a real connected agent over a real websocket), protected-path blocking, the sandbox build-and-promote flow, TF-IDF memory ranking, NOVA sentiment analysis (real classifier, tested against real text), voice auth (real speaker verification, tested enroll→verify with correct accept/reject).
+The system should retrieve only relevant information instead of sending an entire memory database to the AI for every request.
 
-**Built, not independently verified:** the entire Flutter client has never been compiled — no Flutter SDK in the environment this was built in. Structurally correct to the best of available knowledge; run `flutter analyze` before trusting it. A few external calls (geocoding, IP lookup) are correct against stable public APIs but were never live-tested due to sandboxed network restrictions.
+Conceptually:
 
-**Not built yet:**
-- Dedicated always-on wake word (current version listens in the foreground only, while the app is open)
-- Phone-side app control (controlling other apps on the phone itself — PC control exists, this doesn't)
-- Live cross-device handoff mid-conversation
-- Sentinel link scanning (needs a threat-intel API key)
-- Camera presence *auto-detection* (the reaction endpoint is real; nothing captures a photo or detects you're in frame automatically yet)
+```text
+User Request
+     ↓
+Memory Retrieval
+     ↓
+Relevant Context
+     ↓
+AI Reasoning
+     ↓
+Response
+```
 
-If a feature isn't listed here as tested, treat it as unverified until you've run it yourself.
+Memory and conversation history are intentionally treated as separate concepts.
 
-## License
+---
 
+## 💬 Conversation System
+
+Zeni maintains conversational context so interactions can continue naturally.
+
+The conversation system is responsible for:
+
+* Sessions
+* Messages
+* Conversation history
+* Context management
+* Timestamps
+* Message metadata
+* Retrieval
+
+Long-term memory is handled separately from raw conversation history.
+
+---
+
+## 🎙️ Voice
+
+Zeni is designed to support voice interaction.
+
+The intended pipeline is:
+
+```text
+User Speech
+    ↓
+Speech-to-Text
+    ↓
+Zeni AI
+    ↓
+Text Response
+    ↓
+Text-to-Speech
+    ↓
+Voice Output
+```
+
+Voice should use the same Zeni intelligence, memory, personality, and context as text interactions.
+
+---
+
+## 🔐 Voice Authentication
+
+Zeni includes a dedicated voice-authentication concept for protected functionality.
+
+The authentication service is intentionally separated from the main AI server.
+
+```text
+Voice Input
+    ↓
+Voice Authentication
+    ↓
+Identity Verification
+    ↓
+Authorized Zeni Access
+```
+
+Authentication credentials and secrets must never be exposed to the client.
+
+---
+
+## ❤️ NOVA — Emotion Intelligence
+
+**NOVA** is Zeni's emotion-intelligence subsystem.
+
+NOVA is designed to analyze emotional signals from available input such as:
+
+* Text
+* Voice
+* Tone
+* Conversational context
+
+NOVA provides structured emotional context to Zeni's AI system.
+
+```text
+User Input
+    ↓
+NOVA
+    ↓
+Emotional Context
+    ↓
+Zeni AI
+    ↓
+Adaptive Response
+```
+
+NOVA is designed as an independent service so its underlying implementation can evolve without rewriting the main Zeni system.
+
+---
+
+## 💻 Zeni PC Agent
+
+The Zeni PC Agent is a local component that acts as a controlled bridge between Zeni and a user's computer.
+
+Instead of giving the cloud server unrestricted access to the machine:
+
+```text
+Zeni Server
+     ↓
+Authenticated Request
+     ↓
+PC Agent
+     ↓
+Permission Validation
+     ↓
+Local Action
+     ↓
+Result
+```
+
+Potential capabilities include:
+
+* PC status
+* Device information
+* Approved automation
+* Application interaction
+* Local file operations
+* Approved command execution
+* Returning local results
+
+Security and permission boundaries are fundamental to this component.
+
+---
+
+## ⚙️ Tool & Automation System
+
+Zeni is designed around structured tools rather than allowing an AI model to directly execute arbitrary actions.
+
+The intended architecture is:
+
+```text
+AI
+ ↓
+Tool Selection
+ ↓
+Structured Arguments
+ ↓
+Validation
+ ↓
+Authorization
+ ↓
+Tool Execution
+ ↓
+Structured Result
+ ↓
+AI
+```
+
+Each tool should have:
+
+* A defined name
+* Description
+* Input schema
+* Output schema
+* Permission requirements
+* Risk level
+* Execution environment
+
+This architecture makes Zeni easier to extend while maintaining control over automated actions.
+
+---
+
+## 🛠️ Coding Assistant
+
+Zeni is designed to assist with software development.
+
+Potential capabilities include:
+
+* Code generation
+* Debugging
+* Error analysis
+* Code explanation
+* Architecture planning
+* Code review
+* Project planning
+* Development assistance
+
+Zeni should always distinguish between:
+
+**suggesting a code change**
+
+and
+
+**actually modifying/executing something.**
+
+Actions must only be reported as completed when they were actually executed.
+
+---
+
+## 🔎 Research Assistant
+
+Zeni can be extended with information-retrieval capabilities for research workflows.
+
+Possible functionality includes:
+
+* Information gathering
+* Source analysis
+* Comparisons
+* Summarization
+* Research planning
+* Structured findings
+
+External information retrieval should remain separate from the core AI layer.
+
+---
+
+## 📋 Project Intelligence
+
+Zeni is designed to understand ongoing projects instead of treating everything as isolated conversations.
+
+A project can contain:
+
+* Name
+* Description
+* Tasks
+* Notes
+* Status
+* Milestones
+* Decisions
+* Relevant context
+
+This allows Zeni to act as a persistent project assistant.
+
+---
+
+## 📈 Business & Strategy
+
+Zeni is also designed to assist with business and strategy workflows.
+
+Potential areas include:
+
+* Idea analysis
+* Business planning
+* Marketing strategy
+* Project decisions
+* Market research
+* Organization
+* Execution planning
+
+---
+
+## 🛡️ Zeni Sentinel
+
+**Zeni Sentinel** is the defensive security component of the Zeni ecosystem.
+
+Its long-term purpose is to help identify potentially suspicious activity and improve the security of connected Zeni systems.
+
+Potential areas include:
+
+* Suspicious activity detection
+* Security monitoring
+* Network-related signals
+* Device security
+* Threat detection
+
+Sentinel is intended for defensive security and protection.
+
+---
+
+## 🔌 Extensibility
+
+Zeni is designed to grow over time.
+
+External services should be integrated through abstractions instead of being deeply embedded into the core application.
+
+For example:
+
+```text
+Integration Service
+       │
+       ├── Provider A
+       ├── Provider B
+       └── Provider C
+```
+
+This makes providers replaceable and keeps the core architecture clean.
+
+---
+
+## 🔐 Security Principles
+
+Security is a fundamental part of Zeni.
+
+The project follows principles such as:
+
+* Never expose API keys to clients
+* Keep secrets in environment variables
+* Authenticate services
+* Authorize devices
+* Validate tool calls
+* Restrict local PC permissions
+* Validate automated actions
+* Avoid unrestricted AI-generated commands
+* Use secure service communication
+* Maintain safe audit logs
+* Never store credentials in source code
+
+---
+
+## 🧪 Testing
+
+Zeni should be tested at multiple levels.
+
+### Unit Tests
+
+Core components such as:
+
+* Memory
+* Authentication
+* Tool validation
+* Device permissions
+* AI request construction
+* Business logic
+
+### Integration Tests
+
+Service communication such as:
+
+* API → Database
+* API → AI provider
+* API → NOVA
+* API → PC Agent
+* Authentication flows
+
+### End-to-End Tests
+
+Critical user workflows should be tested from the user's interface through the complete backend pipeline.
+
+---
+
+## 📊 Observability
+
+Zeni should provide structured logging and health monitoring.
+
+Important events include:
+
+* Requests
+* Authentication
+* AI calls
+* Tool calls
+* Memory retrieval
+* NOVA processing
+* Device communication
+* PC-agent communication
+* Errors
+* Service health
+* Performance/latency
+
+Sensitive credentials must never be written to logs.
+
+---
+
+## ⚙️ Configuration
+
+Zeni uses environment-based configuration.
+
+Create a local environment file based on the example configuration:
+
+```bash
+cp .env.example .env
+```
+
+Typical configuration may include:
+
+```env
+OPENROUTER_API_KEY=
+DATABASE_URL=
+NOVA_API_URL=
+VOICE_AUTH_URL=
+PC_AGENT_URL=
+```
+
+Only add variables actually required by the current implementation.
+
+**Never commit real API keys or credentials to GitHub.**
+
+---
+
+## 🚀 Development
+
+Clone the repository:
+
+```bash
+git clone <repository-url>
+cd zeni
+```
+
+Install dependencies according to the specific service.
+
+Then configure the required environment variables.
+
+Run the relevant development services according to the project structure.
+
+The repository should clearly document individual commands for:
+
+* Main server
+* NOVA service
+* Voice authentication service
+* PC Agent
+* Client application
+
+---
+
+## 📁 Project Structure
+
+The exact structure may evolve, but the project should maintain clear separation of responsibilities.
+
+```text
+zeni/
+│
+├── client/
+│
+├── server/
+│   ├── api/
+│   ├── ai/
+│   ├── memory/
+│   ├── conversations/
+│   ├── tools/
+│   ├── devices/
+│   ├── authentication/
+│   ├── projects/
+│   ├── integrations/
+│   ├── database/
+│   ├── config/
+│   └── utils/
+│
+├── nova/
+│
+├── voice-auth/
+│
+├── pc-agent/
+│
+├── tests/
+│
+├── docs/
+│
+├── .env.example
+├── .gitignore
+└── README.md
+```
+
+The actual repository may differ depending on the implementation.
+
+The important requirement is that there should be one authoritative implementation for each subsystem.
+
+---
+
+## 🚧 Development Status
+
+Zeni is an actively developed project.
+
+Some capabilities are implemented, while others are under development or planned.
+
+Feature status should be documented honestly.
+
+| Component            | Status                |
+| -------------------- | --------------------- |
+| Core AI              | 🟡 In development     |
+| Memory               | 🟡 In development     |
+| Conversations        | 🟡 In development     |
+| Voice                | 🟡 In development     |
+| Voice Authentication | 🟡 In development     |
+| NOVA                 | 🟡 In development     |
+| PC Agent             | 🟡 In development     |
+| Automation           | 🟡 In development     |
+| Coding Assistant     | 🟡 In development     |
+| Research             | 🟡 In development     |
+| Project Intelligence | 🟡 In development     |
+| Zeni Sentinel        | 🔵 Planned / evolving |
+
+> Status will change as development progresses.
+
+---
+
+## 🗺️ Roadmap
+
+### Phase 1 — Foundation
+
+* [ ] Clean architecture
+* [ ] Stable API
+* [ ] Authentication
+* [ ] Database
+* [ ] AI provider abstraction
+* [ ] Conversation system
+* [ ] Memory system
+
+### Phase 2 — Intelligence
+
+* [ ] NOVA integration
+* [ ] Better contextual memory
+* [ ] Tool system
+* [ ] Project intelligence
+* [ ] Research capabilities
+
+### Phase 3 — Voice & Devices
+
+* [ ] Voice pipeline
+* [ ] Voice authentication
+* [ ] Wake-word system
+* [ ] Stop/cancellation system
+* [ ] PC Agent
+* [ ] Device management
+
+### Phase 4 — Automation
+
+* [ ] Secure automation
+* [ ] Tool permissions
+* [ ] Cross-device workflows
+* [ ] External integrations
+
+### Phase 5 — Sentinel
+
+* [ ] Security monitoring
+* [ ] Device security
+* [ ] Threat detection
+* [ ] Defensive security automation
+
+---
+
+## 🎯 Design Philosophy
+
+Zeni is being built around a few simple principles:
+
+```text
+One Intelligence
+        +
+Modular Architecture
+        +
+Real Functionality
+        +
+Strong Security
+        +
+Persistent Context
+        =
+Zeni
+```
+
+The goal is not to build hundreds of disconnected features.
+
+The goal is to build one coherent AI system that can continuously gain new capabilities without becoming architecturally unstable.
+
+---
+
+## 🤝 Contributing
+
+Zeni is currently under active development.
+
+Before contributing significant changes:
+
+1. Understand the existing architecture.
+2. Avoid duplicating existing functionality.
+3. Keep modules focused.
+4. Do not commit secrets.
+5. Add tests for important functionality.
+6. Update documentation when architecture changes.
+7. Do not add experimental code directly into production modules.
+
+---
+
+## 📜 License
+
+License information will be added when the project's licensing decision is finalized.
+
+---
+
+## 👤 Author
+
+**Anuj Joshi**
+
+Zeni is an independent AI project focused on exploring what a highly integrated personal AI assistant can become.
+
+---
+
+## ⭐ Vision
+
+Zeni is being built toward a future where an AI assistant is not limited to a chat window.
+
+It can understand context.
+
+It can remember.
+
+It can communicate through voice.
+
+It can interact with devices.
+
+It can work with tools.
+
+It can assist with projects.
+
+It can help build software.
+
+It can automate approved workflows.
+
+And most importantly, all of these capabilities can operate as parts of **one unified intelligence**.
+
+**This is Zeni.**
 
